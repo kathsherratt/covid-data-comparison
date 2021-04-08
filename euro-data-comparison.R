@@ -7,14 +7,6 @@ library(scales)
 library(covidHubUtils)
 library(forcats)
 
-ecdc_raw <- readr::read_csv("C:/Users/kaths/Downloads/v4.COVID.filtered_for_model.csv") %>%
-  select(
-    location_name = CountryName,
-    date = Date,
-    value = Value,
-    target_variable = Indicator,
-    source = Source
-)
 
 # variables <- count(ecdc, target_variable)
 
@@ -27,35 +19,6 @@ ecdc_daily <- ecdc_raw %>%
   complete(nesting(location_name, target_variable), date) %>%
   mutate(source_missing = ifelse(is.na(source_missing), 1, source_missing))
 
-# JHU ---------------------------------------------------------------------
-jhu_daily <- readr::read_csv(here("data-truth/JHU/truth_JHU-Incident Cases.csv")) %>%
-  mutate(target_variable = "inc case") %>%
-  bind_rows(readr::read_csv(here("data-truth/JHU/truth_JHU-Incident Deaths.csv")) %>%
-              mutate(target_variable = "inc death")) %>%
-  filter(date <= max(ecdc_daily$date)) %>%
-  mutate(source_missing = ifelse(is.na(target_variable), 1, 0))
-
-# JRC ---------------------------------------------------------------------
-
-jrc <- readr::read_csv("https://raw.githubusercontent.com/ec-jrc/COVID-19/master/data-by-country/jrc-covid-19-all-days-by-country.csv")
-names(jrc) <- tolower(names(jrc))
-  
-jrc_daily <- jrc %>%
-  filter(countryname %in% ecdc_daily$location_name &
-           date %in% ecdc_daily$date) %>%
-  mutate(source_missing = ifelse(is.na(cumulativepositive | cumulativedeceased),
-                                 1, 0)) %>%
-  group_by(countryname) %>%
-  mutate(`inc case` = cumulativepositive - lag(cumulativepositive),
-         `inc death` = cumulativedeceased - lag(cumulativedeceased)) %>%
-  pivot_longer(cols = c(`inc case`, `inc death`), 
-               names_to = "target_variable",
-               values_to = "value") %>%
-  select(location_name = countryname, 
-         source_missing, date,
-         target_variable, value) %>%
-  complete(nesting(location_name, target_variable), date) %>%
-  mutate(source_missing = ifelse(is.na(value), 1, source_missing))
 
 
 # Compare -----------------------------------------------------------------
