@@ -12,7 +12,7 @@ days <- seq.Date(from = max_date,
 
 # ECDC  --------------------------------------------------------------------
 # Private - daily
-ecdc_private <- read_csv("C:/Users/kaths/Downloads/v4.COVID.filtered_for_model.csv") %>%
+ecdc_private <- read_csv("C:/Users/kaths/Documents/private-data/v4.COVID.filtered_for_model.csv") %>%
   select(location_name = CountryName, date = Date,
          value = Value, target_variable = Indicator) %>%
   filter(target_variable %in% c("New_Cases", "New_Deaths")) %>%
