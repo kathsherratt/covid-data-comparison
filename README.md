@@ -6,10 +6,14 @@
  - [JRC](https://github.com/ec-jrc/COVID-19)
  
  Sequence for case/death data:
- - R/get-data.R
- - R/summarise-data.R
- - R/plot.R
- 
+```
+source("R/get-data.R")
+source("R/summarise-data.R")
+source("R/plot.R")
+```
+
  Sequence for healthcare data:
- - R/get-data.R
- - R/health-data.R
+```
+source("R/get-data.R")
+source("R/health-data.R")
+```
