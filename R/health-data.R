@@ -1,12 +1,12 @@
 # Summarise hospitalisation / ICU data
 
-# source("R/get-data.R")
-
 # ECDC private ------------------------------------------------------------
-ecdc_private_health <- read_csv("C:/Users/kaths/Downloads/v4.COVID.filtered_for_model.csv") %>%
+ecdc_private_health <- read_csv("C:/Users/kaths/Documents/private-data/COVID.csv") %>%
   select(location_name = CountryName, date = Date,
          value = Value, target_variable = Indicator) %>%
-  filter(!target_variable %in% c("New_Cases", "New_Deaths", "Current_Respirator")) %>%
+  filter(!target_variable %in% c("New_Cases", "New_Deaths", 
+                                 "New_Respirator", "Current_Respirator",
+                                 "New_Tested")) %>%
   mutate(target_variable = factor(target_variable,
                                   levels = unique(.$target_variable),
                                   labels = c("prev_hosp", # "Current_Hospitalised"
@@ -68,8 +68,25 @@ ecdc_public_inc <- ecdc_public_health %>%
                                              "inc_icu"))) 
 
 # JRC ---------------------------------------------------------------------
+jrc <- read_csv("https://raw.githubusercontent.com/ec-jrc/COVID-19/master/data-by-country/jrc-covid-19-all-days-by-country.csv") %>%
+  rename_with(tolower) %>%
+  filter(countryname %in% pop$location_name) %>%
+  group_by(countryname) %>%
+  mutate(inc_case = cumulativepositive - lag(cumulativepositive),
+         inc_death = cumulativedeceased - lag(cumulativedeceased)) %>%
+  pivot_longer(cols = c(inc_case, inc_death, 
+                        hospitalized, intensivecare), 
+               names_to = "target_variable",
+               values_to = "value") %>%
+  mutate(source = "JRC",
+         target_variable = recode(target_variable, 
+                                  "hospitalized" = "prev_hosp",
+                                  "intensivecare" = "prev_icu")) %>%
+  select(location_name = countryname, date,
+         target_variable, value, source) %>%
+  filter(target_variable %in% c("prev_hosp", "prev_icu"))
+
 jrc_health_grid <- jrc %>%
-  filter(target_variable %in% c("prev_hosp", "prev_icu")) %>%
   expand(date = full_seq(date, 1),
          location_name, target_variable, source) %>%
   left_join(jrc, by = c("location_name", "date", "target_variable", "source"))
@@ -108,111 +125,7 @@ health_day_week <- left_join(health, health_weekly,
   bind_rows(ecdc_public_inc)
   
 
-# Plot --------------------------------------------------------------------
-# Set dates when all sources have data (i.e. ECDC private data)
-min_date <- as.Date("2021-02-14")
-max_date <- as.Date("2021-03-15")
-
-health_day_week %>%
-  filter(date >= min_date & date <= max_date) %>%
-  filter(target_variable == "prev_hosp") %>%
-  ggplot(aes(x = date, colour = source, fill = source)) +
-  geom_line(aes(y = value_weekly), 
-            data = filter(health_weekly,
-                          date >= min_date & date <= max_date &
-                          target_variable == "prev_hosp")) +
-  geom_point(aes(y = value), size = 1) +
-  scale_fill_manual(values = source_colours) +
-  scale_colour_manual(values = source_colours) +
-  labs(x = NULL, y = "Daily and weekly hospital occupancy") +
-  facet_wrap("location_name", scales = "free_y") +
-  theme_classic() +
-  theme(legend.position = "bottom",
-        strip.background = element_blank())
-
-ggsave("figures/all-source-hosp2.jpg", height = 8, width = 15)
-
-health_day_week %>%
-  filter(date >= min_date & date <= max_date) %>%
-  filter(target_variable == "prev_icu") %>%
-  ggplot(aes(x = date, colour = source, fill = source)) +
-  geom_line(aes(y = value_weekly), 
-            data = filter(health_weekly,
-                          date >= min_date & date <= max_date &
-                            target_variable == "prev_icu")) +
-  geom_point(aes(y = value), size = 1) +
-  scale_fill_manual(values = source_colours) +
-  scale_colour_manual(values = source_colours) +
-  labs(x = NULL, y = "Daily and weekly hospital occupancy") +
-  facet_wrap("location_name", scales = "free_y") +
-  theme_classic() +
-  theme(legend.position = "bottom",
-        strip.background = element_blank())
-
-ggsave("figures/all-source-icu2.jpg", height = 8, width = 15)
-
-
- # Incidence
-health_day_week %>%
-  filter(date >= min_date & date <= max_date) %>%
-  filter(target_variable == "inc_hosp") %>%
-  ggplot(aes(x = date, colour = source, fill = source)) +
-  geom_line(aes(y = value_weekly), 
-            data = filter(health_weekly,
-                          date >= min_date & date <= max_date &
-                            target_variable == "inc_hosp")) +
-  geom_point(aes(y = value), size = 1) +
-  scale_fill_manual(values = source_colours) +
-  scale_colour_manual(values = source_colours) +
-  labs(x = NULL, y = "Daily and weekly hospital admissions") +
-  facet_wrap("location_name", scales = "free_y") +
-  theme_classic() +
-  theme(legend.position = "bottom",
-        strip.background = element_blank())
-
-ggsave("figures/all-source-inc-hosp.jpg", height = 8, width = 15)
-
-health_day_week %>%
-  filter(date >= min_date & date <= max_date) %>%
-  filter(target_variable == "inc_icu") %>%
-  ggplot(aes(x = date, colour = source, fill = source)) +
-  geom_line(aes(y = value_weekly), 
-            data = filter(health_weekly,
-                          date >= min_date & date <= max_date &
-                            target_variable == "inc_icu")) +
-  geom_point(aes(y = value), size = 1) +
-  scale_fill_manual(values = source_colours) +
-  scale_colour_manual(values = source_colours) +
-  labs(x = NULL, y = "Daily and weekly ICU admissions") +
-  facet_wrap("location_name", scales = "free_y") +
-  theme_classic() +
-  theme(legend.position = "bottom",
-        strip.background = element_blank())
-
-ggsave("figures/all-source-inc-icu.jpg", height = 8, width = 15)
 
 # left join compare -------------------------------------------------------
-
-
-
-
-
-# join for comparison over 2 weeks
-all_join <- full_join(ecdc_public_health_grid, ecdc_private_health_grid,
-                       by = c("location_name", "date", "target_variable")) %>%
-  rename(value_public = value.x, value_private = value.y) %>%
-  filter(date >= "2021-03-01" &
-           date <= max(ecdc_private_health_grid$date)) %>%
-  left_join(jrc_health_grid, by = c("location_name", "date", "target_variable")) %>%
-  rename(value_jhu = value)
-
-mutate(value_diff = ifelse((value_public - value_private) %in% c(0, NA),
-                           NA, (value_public - value_private)))
-
-# % date/locations where differ
-sum_ecdc_join <- ecdc_join %>%
-  group_by(target_variable, location_name) %>%
-  summarise(n_public = sum(!is.na(value_public)),
-            n_private = sum(!is.na(value_private)))
 
 

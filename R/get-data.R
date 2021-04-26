@@ -12,7 +12,7 @@ days <- seq.Date(from = max_date,
 
 # ECDC  --------------------------------------------------------------------
 # Private - daily
-ecdc_private <- read_csv("C:/Users/kaths/Documents/private-data/v4.COVID.filtered_for_model.csv") %>%
+ecdc_private <- read_csv("C:/Users/kaths/Documents/private-data/COVID.csv") %>%
   select(location_name = CountryName, date = Date,
          value = Value, target_variable = Indicator) %>%
   filter(target_variable %in% c("New_Cases", "New_Deaths")) %>%
@@ -95,3 +95,16 @@ grid <- bind_rows(expand_data(ecdc_public),
                    expand_data(jrc), 
                    expand_data(who)
 )
+
+
+# Plotting defaults -------------------------------------------------------
+source_colours <- c(
+  "WHO" = "#377eb8",
+  "JRC" = "#4daf4a",
+  "JHU" = "#984ea3",
+  "ECDC-public" = "#ff7f00",
+  "ECDC-private" = "#e41a1c",
+  "ECDC-public-daily" = "#ff7f00",
+  "ECDC-public-weekly" = "#ffff33"
+)
+
