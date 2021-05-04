@@ -1,4 +1,8 @@
-# Summarise hospitalisation / ICU data
+# Get hospitalisation / ICU data
+library(dplyr)
+library(readr)
+library(tidyr)
+library(lubridate)
 
 # ECDC private ------------------------------------------------------------
 ecdc_private_health <- read_csv("C:/Users/kaths/Documents/private-data/COVID.csv") %>%
@@ -97,14 +101,6 @@ jrc_health_grid <- jrc %>%
 health <- bind_rows(jrc_health_grid, ecdc_private_health_grid, 
                     ecdc_public_prev)
 
-# health_sum <- health %>%
-#   filter(date <= "2021-03-15") %>% #date >= "2021-03-01" & 
-#   group_by(target_variable, source) %>%
-#   summarise(missing = sum(is.na(value)),
-#             all = n(),
-#             present = (1 - (missing / all)) * 100,
-#             miss_p = missing / all * 100)
-
 # Weekly ------------------------------------------------------------------
 health_weekly <- health %>%
   mutate(epiweek = epiweek(date),
@@ -124,8 +120,3 @@ health_day_week <- left_join(health, health_weekly,
                                   "target_variable", "source")) %>%
   bind_rows(ecdc_public_inc)
   
-
-
-# left join compare -------------------------------------------------------
-
-
