@@ -1,5 +1,6 @@
 # private
 /figures/with-private/
+/reports/with-private/
 
 # History files
 .Rhistory
