@@ -53,6 +53,7 @@ week_date <- ecdc_public_health %>%
 pop <- read_csv("https://raw.githubusercontent.com/epiforecasts/covid19-forecast-hub-europe/main/data-locations/locations_eu.csv") %>%
   select(-location)
 
+# Rates to counts
 ecdc_public_inc <- ecdc_public_health %>%
   filter(target_variable %in% c("Weekly new hospital admissions per 100k", 
                                 "Weekly new ICU admissions per 100k")) %>%
