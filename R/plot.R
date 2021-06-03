@@ -6,8 +6,8 @@ source("R/summarise-data.R")
 plot_min_date <- Sys.Date() - 43
 plot_max_date <- Sys.Date() - 1
 
-easter_start <- as.Date("2021-04-01")
-easter_end <- as.Date("2021-04-05")
+# easter_start <- as.Date("2021-04-01")
+# easter_end <- as.Date("2021-04-05")
 
 # # Public data only:
 # grid_day_week <- grid_day_week %>%
@@ -83,29 +83,29 @@ jhu_diverge_who <- c(
 grid_day_week %>%
   filter(location_name %in% jhu_diverge_who) %>%
   plot_by_source(target = "inc_case", weekly = TRUE) +
-  geom_vline(xintercept = easter_start, lty = 3) +
-  geom_vline(xintercept = easter_end, lty = 3) +
+  # geom_vline(xintercept = easter_start, lty = 3) +
+  # geom_vline(xintercept = easter_end, lty = 3) +
   labs(x = NULL, y = "Daily and weekly incident cases")  +
   ggsave(paste0(figure_folder, "all-source-cases-jhu.jpg"), height = 5, width = 10)
 
 grid_day_week %>%
   filter(location_name %in% jhu_diverge_who) %>%
   plot_by_source(target = "inc_death", weekly = TRUE) +
-  geom_vline(xintercept = easter_start, lty = 3) +
-  geom_vline(xintercept = easter_end, lty = 3) +
+  # geom_vline(xintercept = easter_start, lty = 3) +
+  # geom_vline(xintercept = easter_end, lty = 3) +
   labs(x = NULL, y = "Daily and weekly incident deaths")  +
   ggsave(paste0(figure_folder, "all-source-deaths-jhu.jpg"), height = 5, width = 10)
 
 
 # Examples ----------------------------------------------------------------
 # Lithuania
-grid_day_week %>%
-  filter(location_name == "Lithuania") %>%
-  plot_by_source(target = "inc_death",
-                 location_wrap = FALSE) +
-  labs(y = "Daily and weekly incident deaths",
-       subtitle = "Lithuania") +
-  ggsave(paste0(figure_folder, "lithuania-deaths.jpg"), height = 4, width = 10)  
+# grid_day_week %>%
+#   filter(location_name == "Lithuania") %>%
+#   plot_by_source(target = "inc_death",
+#                  location_wrap = FALSE) +
+#   labs(y = "Daily and weekly incident deaths",
+#        subtitle = "Lithuania") +
+#   ggsave(paste0(figure_folder, "lithuania-deaths.jpg"), height = 4, width = 10)  
 
 
 # All countries daily/weekly plots -------------------------------------------------------------
@@ -116,8 +116,6 @@ max_date <- Sys.Date()
 # All sources - cases
 grid_day_week %>%
   plot_by_source(target = "inc_case") +
-  geom_vline(xintercept = easter_start, lty = 3) +
-  geom_vline(xintercept = easter_end, lty = 3) +
   labs(x = NULL, y = "Daily and weekly incident cases")  +
   ggsave(paste0(figure_folder, "all-source-cases.jpg"), height = 8, width = 15)
 
@@ -125,8 +123,6 @@ grid_day_week %>%
 # All sources - deaths
 grid_day_week %>%
   plot_by_source(target = "inc_death") +
-  geom_vline(xintercept = easter_start, lty = 3) +
-  geom_vline(xintercept = easter_end, lty = 3) +
   labs(x = NULL, y = "Daily and weekly incident deaths") +
   ggsave(paste0(figure_folder, "all-source-deaths.jpg"), height = 8, width = 15)  
 

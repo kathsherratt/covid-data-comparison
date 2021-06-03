@@ -10,7 +10,14 @@ max_date <- as.Date("2021-03-15")
 days <- seq.Date(from = max_date,
                  length.out = 12*7, by = -1)
 
+if (!exists("private")) {
+  private <- FALSE
+}
+
+
 # ECDC  --------------------------------------------------------------------
+
+if (private) {
 # Private - daily
 ecdc_private <- read_csv("C:/Users/kaths/Documents/private-data/COVID.csv") %>%
   select(location_name = CountryName, date = Date,
@@ -20,6 +27,7 @@ ecdc_private <- read_csv("C:/Users/kaths/Documents/private-data/COVID.csv") %>%
                                   levels = unique(.$target_variable),
                                   labels = c("inc_case", "inc_death")),
          source = "ECDC-private")
+}
 
 # Public - daily
 ecdc_public <- read_csv("https://opendata.ecdc.europa.eu/covid19/nationalcasedeath_eueea_daily_ei/csv/data.csv") %>%
@@ -78,7 +86,11 @@ who <- read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv") %>%
 
 
 # Bind all ----------------------------------------------------------------
-all_data <- bind_rows(ecdc_private, ecdc_public, jhu_cases, jhu_deaths, jrc, who)
+all_data <- bind_rows(ecdc_public, jhu_cases, jhu_deaths, jrc, who)
+
+if (exists("ecdc_private")) {
+  all_data <- bind_rows(all_data, ecdc_private)
+}
 
 expand_data <- function(data) {
   grid <- expand(data,
@@ -89,12 +101,16 @@ expand_data <- function(data) {
 }
 
 grid <- bind_rows(expand_data(ecdc_public),
-                   expand_data(ecdc_private),
                    expand_data(jhu_cases), 
                    expand_data(jhu_deaths), 
                    expand_data(jrc), 
                    expand_data(who)
 )
+
+if (exists("ecdc_private")) {
+  grid <- bind_rows(grid,
+                    expand_data(ecdc_private))
+}
 
 
 # Plotting defaults -------------------------------------------------------

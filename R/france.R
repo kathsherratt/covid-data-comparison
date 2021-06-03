@@ -32,9 +32,6 @@ france_weekly <- filter(health_weekly, location_name == "France") %>%
   filter(date > Sys.Date() - weeks(12))
 
 # Add France national data
-frtest <- vroom(here("public-data", 
-                          "donnees-hospitalieres-nouveaux-covid19-2021-05-16-19h08.csv"))
-
 fr_csv <- tempfile(fileext = ".csv")
 download.file("https://www.data.gouv.fr/fr/datasets/r/6fadff46-9efd-4c53-942a-54aca783c30c",
               fr_csv)
