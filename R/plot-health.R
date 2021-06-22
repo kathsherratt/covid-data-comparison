@@ -7,21 +7,13 @@ source_colours <- c(
   "JRC" = "#4daf4a",
   "JHU" = "#984ea3",
   "ECDC-public" = "#ff7f00",
-  "ECDC-private" = "#e41a1c",
-  "ECDC-public-daily" = "#ff7f00",
-  "ECDC-public-weekly" = "#FFD700"
+  "ECDC-daily" = "#ff7f00",
+  "ECDC-weekly" = "#FFD700"
 )
 
-# # Public data only:
-# grid_day_week <- grid_day_week %>%
-#   filter(!source %in% "ECDC-private")
-# 
+
 # Set folder for saving 
-if (any(unique(health$source) %in% "ECDC-private")) {
-  figure_folder <- here("figures", "with-private", "/")
-} else {
-  figure_folder <- here("figures", "/")
-}
+figure_folder <- here("figures", "/")
 
 # Set dates as last 6 weeks
 min_date <- Sys.Date() - weeks(6)

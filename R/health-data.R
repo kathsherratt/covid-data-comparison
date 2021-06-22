@@ -2,122 +2,95 @@
 library(dplyr)
 library(readr)
 library(tidyr)
+library(stringr)
 library(lubridate)
+library(ggplot2)
 
-# ECDC private ------------------------------------------------------------
-ecdc_private_health <- read_csv("C:/Users/kaths/Documents/private-data/COVID.csv") %>%
-  select(location_name = CountryName, date = Date,
-         value = Value, target_variable = Indicator) %>%
-  filter(!target_variable %in% c("New_Cases", "New_Deaths", 
-                                 "New_Respirator", "Current_Respirator",
-                                 "New_Tested")) %>%
-  mutate(target_variable = factor(target_variable,
-                                  levels = unique(.$target_variable),
-                                  labels = c("prev_hosp", # "Current_Hospitalised"
-                                             "prev_icu", # "Current_ICU"
-                                             "inc_hosp", # "New_Hospitalised"
-                                             "inc_icu")), # "New_ICU"
-         source = "ECDC-private")
+# Set up ------------------------------------------------------------------
+full_date_seq <- seq.Date(from =  as.Date("2021-01-01"), to = as.Date("2021-06-19"), by = 1)
+full_week_seq <- seq.Date(from =  as.Date("2021-01-10"), to = as.Date("2021-06-19"), by = 7)
+pop <- read_csv("https://raw.githubusercontent.com/epiforecasts/covid19-forecast-hub-europe/main/data-locations/locations_eu.csv")
+setting <- c("General hospital", "Intensive care unit")
+count = c("Occupancy", "Admissions")
+source = c("ECDC", "OWID", "JRC")
 
-ecdc_private_health_grid <- ecdc_private_health %>%
-  expand(date = full_seq(date, 1), 
-         location_name, target_variable, source) %>%
-  left_join(ecdc_private_health, by = c("location_name", "date", "target_variable", "source"))
+# Expand to all possible combinations of location, target, date
+grid <- expand_grid(source = source,
+                    date = full_date_seq, 
+                    location = pop$location,
+                    setting = setting,
+                    count = count) %>%
+  # remove daily rows for admissions data provided in weekly aggregates
+  filter(!(count == "Admissions" & !date %in% full_week_seq))
 
-# ECDC public -------------------------------------------------------------
-ecdc_public_health <- read_csv("https://opendata.ecdc.europa.eu/covid19/hospitalicuadmissionrates/csv/data.csv") %>%
+# Raw data ----------------------------------------------------------------
+
+# ECDC data
+ecdc_raw <- read_csv("https://opendata.ecdc.europa.eu/covid19/hospitalicuadmissionrates/csv/data.csv") %>%
   select(location_name = country, 
-         year_week, date,
-         target_variable = indicator, value) %>%
-  mutate(date = ymd(date))
-
-# Prevalence - daily
-ecdc_public_prev <- ecdc_public_health %>%
-  filter(target_variable %in% c("Daily hospital occupancy", "Daily ICU occupancy")) %>%
-  expand(date = full_seq(date, 1), 
-         location_name, target_variable) %>%
-  left_join(select(ecdc_public_health,
-                   -year_week), 
-            by = c("location_name", "date", "target_variable")) %>%
-  mutate(source = "ECDC-public-daily",
-         target_variable = factor(target_variable,
-                                  levels = unique(.$target_variable),
-                                  labels = c("prev_hosp",
-                                             "prev_icu")))
-
-# Incidence - weekly per 100k
-week_date <- ecdc_public_health %>%
-  group_by(year_week) %>%
-  summarise(date = max(date, na.rm = TRUE))
-
-pop <- read_csv("https://raw.githubusercontent.com/epiforecasts/covid19-forecast-hub-europe/main/data-locations/locations_eu.csv") %>%
-  select(-location)
-
-# Rates to counts
-ecdc_public_inc <- ecdc_public_health %>%
-  filter(target_variable %in% c("Weekly new hospital admissions per 100k", 
-                                "Weekly new ICU admissions per 100k")) %>%
-  expand(year_week, location_name, target_variable) %>%
-  left_join(ecdc_public_health, by = c("location_name", 
-                                       "year_week",
-                                       "target_variable")) %>%
-  left_join(week_date, by = "year_week") %>%
-  select(date = date.y, value, everything(), -date.x) %>%
+         year_week, 
+         date,
+         indicator, 
+         value) %>%
   left_join(pop, by = "location_name") %>%
-  mutate(value_weekly = (value * population) / 100000,
-         source = "ECDC-public-weekly") %>%
-  select(-population, -year_week, -value) %>%
-  mutate(target_variable = factor(target_variable,
-                                  levels = unique(.$target_variable),
-                                  labels = c("inc_hosp",
-                                             "inc_icu"))) 
+  mutate(date = ymd(date),
+         setting = case_when(str_detect(indicator, "hospital") ~ "General hospital", 
+                                     str_detect(indicator, "ICU") ~ "Intensive care unit"),
+         count = case_when(str_detect(indicator, "admissions") ~ "Admissions",
+                           str_detect(indicator, "occupancy") ~ "Occupancy"),
+         # convert rate to count
+         value = case_when(count == "Admissions" ~ (value * population) / 100000,
+                           count == "Occupancy" ~ value),
+         source = "ECDC") %>%
+  select(source, date, location, setting, count, value)
 
-# JRC ---------------------------------------------------------------------
-jrc <- read_csv("https://raw.githubusercontent.com/ec-jrc/COVID-19/master/data-by-country/jrc-covid-19-all-days-by-country.csv") %>%
-  rename_with(tolower) %>%
-  filter(countryname %in% pop$location_name) %>%
-  group_by(countryname) %>%
-  mutate(inc_case = cumulativepositive - lag(cumulativepositive),
-         inc_death = cumulativedeceased - lag(cumulativedeceased)) %>%
-  pivot_longer(cols = c(inc_case, inc_death, 
-                        hospitalized, intensivecare), 
-               names_to = "target_variable",
+# OWID
+owid_raw <- read_csv("https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                 col_types = cols(.default = "c")) %>%
+  select(location_name = location, 
+         date, 
+         icu_patients,
+         weekly_icu_admissions,
+         hosp_patients,
+         weekly_hosp_admissions) %>%
+  right_join(pop, by = "location_name") %>%
+  select(-population, -location_name) %>%
+  pivot_longer(contains(c("hosp", "icu")),
+               names_to = "setting_count",
                values_to = "value") %>%
-  mutate(source = "JRC",
-         target_variable = recode(target_variable, 
-                                  "hospitalized" = "prev_hosp",
-                                  "intensivecare" = "prev_icu")) %>%
-  select(location_name = countryname, date,
-         target_variable, value, source) %>%
-  filter(target_variable %in% c("prev_hosp", "prev_icu"))
+  mutate(date = ymd(date),
+         value = as.numeric(value),
+         setting = case_when(str_detect(setting_count, "hosp") ~ "General hospital", 
+                             str_detect(setting_count, "icu") ~ "Intensive care unit"),
+         count = case_when(str_detect(setting_count, "admissions") ~ "Admissions",
+                           str_detect(setting_count, "patients") ~ "Occupancy"),
+         source = "OWID") %>%
+  select(source, date, location, setting, count, value)
 
-jrc_health_grid <- jrc %>%
-  expand(date = full_seq(date, 1),
-         location_name, target_variable, source) %>%
-  left_join(jrc, by = c("location_name", "date", "target_variable", "source"))
+# JRC data
+jrc_raw <- read_csv("https://raw.githubusercontent.com/ec-jrc/COVID-19/master/data-by-country/jrc-covid-19-all-days-by-country.csv") %>%
+  rename_with(tolower) %>%
+  select(date, countryname, 
+         "General hospital" = hospitalized, 
+         "Intensive care unit" = intensivecare) %>%
+  right_join(pop, by = c("countryname" = "location_name")) %>%
+  group_by(location) %>%
+  pivot_longer(cols = c(`General hospital`, `Intensive care unit`), 
+               names_to = "setting",
+               values_to = "value") %>%
+  mutate(count = "Occupancy",
+         source = "JRC") %>%
+  select(source, date, location, setting, count, value)
 
 
-# Bind --------------------------------------------------------------------
+# Expanded data -----------------------------------------------------------
+raw <- bind_rows(jrc_raw, owid_raw, ecdc_raw)
 
-health <- bind_rows(jrc_health_grid, ecdc_private_health_grid, 
-                    ecdc_public_prev)
+grid_data <- left_join(grid, raw, by = c("source", "date", "location", 
+                                         "setting", "count"))
 
-# Weekly ------------------------------------------------------------------
-health_weekly <- health %>%
-  mutate(epiweek = epiweek(date),
-         year = epiyear(date)) %>%
-  group_by(epiweek, year, location_name, target_variable, source) %>%
-  mutate(value = replace_na(value, 0)) %>%
-  summarise(value_weekly = sum(value),
-            date = max(date),
-            n = n(),
-            .groups = "drop") %>%
-  # remove incomplete weeks
-  filter(n == 7) %>%
-  select(-c(n, year)) 
+grid_data <- grid_data %>%
+  mutate(source = factor(source,
+                         levels = c("ECDC", "OWID", "JRC")))
 
-health_day_week <- left_join(health, health_weekly,
-                           by = c("date", "location_name", 
-                                  "target_variable", "source")) %>%
-  bind_rows(ecdc_public_inc)
-  
+rm(ecdc_raw, jrc_raw, owid_raw, grid)

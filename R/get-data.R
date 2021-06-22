@@ -6,29 +6,11 @@ library(readr)
 library(lubridate)
 
 locations <- read_csv("locations_eu.csv")
-max_date <- as.Date("2021-03-15")
+max_date <- Sys.Date() - 1
 days <- seq.Date(from = max_date,
                  length.out = 12*7, by = -1)
 
-if (!exists("private")) {
-  private <- FALSE
-}
-
-
 # ECDC  --------------------------------------------------------------------
-
-if (private) {
-# Private - daily
-ecdc_private <- read_csv("C:/Users/kaths/Documents/private-data/COVID.csv") %>%
-  select(location_name = CountryName, date = Date,
-         value = Value, target_variable = Indicator) %>%
-  filter(target_variable %in% c("New_Cases", "New_Deaths")) %>%
-  mutate(target_variable = factor(target_variable,
-                                  levels = unique(.$target_variable),
-                                  labels = c("inc_case", "inc_death")),
-         source = "ECDC-private")
-}
-
 # Public - daily
 ecdc_public <- read_csv("https://opendata.ecdc.europa.eu/covid19/nationalcasedeath_eueea_daily_ei/csv/data.csv") %>%
   mutate(date = dmy(dateRep),
@@ -88,10 +70,6 @@ who <- read_csv("https://covid19.who.int/WHO-COVID-19-global-data.csv") %>%
 # Bind all ----------------------------------------------------------------
 all_data <- bind_rows(ecdc_public, jhu_cases, jhu_deaths, jrc, who)
 
-if (exists("ecdc_private")) {
-  all_data <- bind_rows(all_data, ecdc_private)
-}
-
 expand_data <- function(data) {
   grid <- expand(data,
                  date = full_seq(date, 1), 
@@ -107,19 +85,12 @@ grid <- bind_rows(expand_data(ecdc_public),
                    expand_data(who)
 )
 
-if (exists("ecdc_private")) {
-  grid <- bind_rows(grid,
-                    expand_data(ecdc_private))
-}
-
-
 # Plotting defaults -------------------------------------------------------
 source_colours <- c(
   "WHO" = "#377eb8",
   "JRC" = "#4daf4a",
   "JHU" = "#984ea3",
   "ECDC-public" = "#ff7f00",
-  "ECDC-private" = "#e41a1c",
   "ECDC-public-daily" = "#ff7f00",
   "ECDC-public-weekly" = "#ffff33"
 )
